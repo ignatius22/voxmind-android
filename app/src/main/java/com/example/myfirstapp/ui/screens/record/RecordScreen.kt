@@ -1,8 +1,12 @@
 package com.example.myfirstapp.ui.screens.record
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -23,7 +27,6 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -43,9 +46,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.example.myfirstapp.domain.model.NoteCategory
 import com.example.myfirstapp.ui.components.AudioWaveformVisualizer
 import com.example.myfirstapp.ui.theme.AccentCyan
@@ -65,11 +70,34 @@ fun RecordScreen(
     onBackClick: () -> Unit,
     onRecordingCompleted: (String) -> Unit
 ) {
+    val context = LocalContext.current
     val state by viewModel.uiState.collectAsState()
 
     val minutes = state.elapsedSeconds / 60
     val seconds = state.elapsedSeconds % 60
     val formattedTime = String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            viewModel.startRecording(context)
+        } else {
+            Toast.makeText(context, "Microphone permission is required to record audio", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val onStartRecordingClick = {
+        val permissionState = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.RECORD_AUDIO
+        )
+        if (permissionState == PackageManager.PERMISSION_GRANTED) {
+            viewModel.startRecording(context)
+        } else {
+            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -217,7 +245,7 @@ fun RecordScreen(
                 } else if (!state.isRecording && state.elapsedSeconds == 0) {
                     // Record Button
                     IconButton(
-                        onClick = { viewModel.startRecording() },
+                        onClick = onStartRecordingClick,
                         modifier = Modifier
                             .size(80.dp)
                             .clip(CircleShape)
