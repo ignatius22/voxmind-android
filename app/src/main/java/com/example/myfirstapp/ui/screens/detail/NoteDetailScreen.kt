@@ -21,9 +21,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -61,6 +63,8 @@ fun NoteDetailScreen(
     viewModel: NoteDetailViewModel,
     onBackClick: () -> Unit
 ) {
+    val context = LocalContext.current
+
     LaunchedEffect(noteId) {
         viewModel.loadNote(noteId)
     }
@@ -158,15 +162,15 @@ fun NoteDetailScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             IconButton(
-                                onClick = { viewModel.toggleAudioPlayback() },
+                                onClick = { viewModel.toggleAudioPlayback(context) },
                                 modifier = Modifier
                                     .size(44.dp)
                                     .clip(CircleShape)
                                     .background(PrimaryViolet)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = "Play Audio",
+                                    imageVector = if (state.isPlayingAudio) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    contentDescription = if (state.isPlayingAudio) "Pause Audio" else "Play Audio",
                                     tint = TextPrimary
                                 )
                             }

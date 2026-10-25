@@ -1,14 +1,18 @@
 package com.example.myfirstapp.ui.screens.detail
 
+import android.content.Context
+import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myfirstapp.domain.model.VoiceNote
 import com.example.myfirstapp.domain.repository.NoteRepository
+import com.example.myfirstapp.util.AndroidAudioPlayer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.File
 
 data class NoteDetailUiState(
     val note: VoiceNote? = null,
@@ -25,6 +29,8 @@ class NoteDetailViewModel(
 
     private val _uiState = MutableStateFlow(NoteDetailUiState())
     val uiState: StateFlow<NoteDetailUiState> = _uiState.asStateFlow()
+
+    private var audioPlayer: AndroidAudioPlayer? = null
 
     fun loadNote(noteId: String) {
         viewModelScope.launch {
@@ -46,11 +52,46 @@ class NoteDetailViewModel(
         }
     }
 
-    fun toggleAudioPlayback() {
-        _uiState.update { it.copy(isPlayingAudio = !it.isPlayingAudio) }
+    fun toggleAudioPlayback(context: Context) {
+        val note = _uiState.value.note ?: return
+        val currentlyPlaying = _uiState.value.isPlayingAudio
+
+        if (currentlyPlaying) {
+            audioPlayer?.pause()
+            _uiState.update { it.copy(isPlayingAudio = false) }
+        } else {
+            val audioPath = note.audioPath ?: ""
+            if (audioPath.isBlank()) {
+                Toast.makeText(context, "No local audio recorded for this sample note", Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            val file = File(audioPath)
+            if (file.exists() && file.length() > 0) {
+                if (audioPlayer == null) {
+                    audioPlayer = AndroidAudioPlayer(context.applicationContext)
+                }
+                _uiState.update { it.copy(isPlayingAudio = true) }
+                audioPlayer?.playFile(
+                    file = file,
+                    speed = _uiState.value.playbackSpeed,
+                    onCompletion = {
+                        _uiState.update { it.copy(isPlayingAudio = false) }
+                    }
+                )
+            } else {
+                Toast.makeText(context, "Local audio file not found on device", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     fun setPlaybackSpeed(speed: Float) {
         _uiState.update { it.copy(playbackSpeed = speed) }
+        audioPlayer?.setSpeed(speed)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        audioPlayer?.stop()
     }
 }
